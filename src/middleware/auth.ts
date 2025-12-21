@@ -22,7 +22,7 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
     };
     (req as any).user = { id: payload.id, email: payload.email };
     return next();
-  } catch (e) {
+  } catch (_error) {
     return next(new AppError('Unauthorized', 401, 'UNAUTHORIZED'));
   }
 }

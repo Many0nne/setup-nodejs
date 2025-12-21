@@ -26,6 +26,6 @@ export const UserService = {
 };
 
 function sanitize<T extends { passwordHash?: string }>(u: T) {
-  const { passwordHash, ...rest } = u as any;
+  const { passwordHash: _passwordHash, ...rest } = u as any;
   return rest;
 }

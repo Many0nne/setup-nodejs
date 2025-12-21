@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/user.service';
-import { Env } from '../config/env';
 import { AuthService } from '../services/auth.service';
 import { AppError } from '../errors/app-error';
 
