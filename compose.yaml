@@ -1,0 +1,41 @@
+services:
+  server:
+    build:
+      context: .
+    environment:
+      NODE_ENV: production
+      JWT_SECRET: please-change-this-long-secret-string--------------------------------
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/appdb?schema=public
+      PRISMA_CLIENT_ENGINE_TYPE: binary
+    ports:
+      - 3000:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: appdb
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    image: adminer:latest
+    ports:
+      - 8080:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pg-data:
