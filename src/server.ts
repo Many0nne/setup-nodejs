@@ -14,7 +14,9 @@ const shutdown = async (signal: string) => {
   server.close(async () => {
     try {
       await disconnectPrisma();
-    } catch {}
+    } catch {
+      //
+    }
     logger.info('Shutdown complete');
     process.exit(0);
   });

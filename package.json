@@ -15,7 +15,7 @@
     "migrate": "prisma migrate dev",
     "generate": "prisma generate --config ./prisma.config.ts",
     "seed": "prisma db seed",
-    "prepare": "husky || exit 0"
+    "prepare": "husky"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
