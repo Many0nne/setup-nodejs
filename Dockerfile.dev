@@ -1,0 +1,20 @@
+# syntax=docker/dockerfile:1
+ARG NODE_VERSION=24.0.0
+
+FROM node:${NODE_VERSION}-alpine
+WORKDIR /usr/src/app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Copy source
+COPY . .
+
+# Generate Prisma client for development
+RUN npx prisma generate --config ./prisma.config.ts
+
+EXPOSE 3000
+
+# Start in watch mode
+CMD ["npm", "run", "dev"]
