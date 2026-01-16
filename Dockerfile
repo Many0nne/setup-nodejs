@@ -5,7 +5,7 @@ ARG NODE_VERSION=24.0.0
 FROM node:${NODE_VERSION}-alpine AS build
 WORKDIR /usr/src/app
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --ignore-scripts
 COPY . .
 # Generate Prisma client during build to avoid runtime writes
 RUN npx prisma generate --config ./prisma.config.ts
