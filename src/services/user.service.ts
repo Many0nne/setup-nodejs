@@ -3,12 +3,16 @@ import { UserRepository } from '../repositories/user.repository';
 import { AppError } from '../errors/app-error';
 import { Env } from '../config/env';
 
+// Service utilisateur : encapsule la logique d'accès utilisateur et
+// transforme les erreurs en `AppError` compréhensibles par le middleware.
+
 export const UserService = {
   register: async (email: string, password: string) => {
     const existing = await UserRepository.findByEmail(email);
     if (existing) throw new AppError('Email already in use', 409, 'EMAIL_TAKEN');
     const hash = await bcrypt.hash(password, Env.BCRYPT_SALT_ROUNDS);
     const user = await UserRepository.create(email, hash);
+    // On renvoie l'utilisateur sans champs sensibles
     return sanitize(user);
   },
   validateCredentials: async (email: string, password: string) => {
@@ -25,6 +29,7 @@ export const UserService = {
   },
 };
 
+// Supprime les champs sensibles (ex: `passwordHash`) avant de renvoyer l'objet
 function sanitize<T extends { passwordHash?: string }>(u: T) {
   const { passwordHash: _passwordHash, ...rest } = u as any;
   return rest;

@@ -4,7 +4,6 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  // Example: create a default user only if none exists
   const count = await prisma.user.count();
   if (count === 0) {
     await prisma.user.create({

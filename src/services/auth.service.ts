@@ -6,27 +6,34 @@ import { AppError } from '../errors/app-error';
 import { RefreshTokenRepository } from '../repositories/refresh-token.repository';
 import { UserService } from './user.service';
 
+// Service d'authentification
+// - Les access tokens sont des JWTs signés (courte durée)
+// - Les refresh tokens sont des tokens opaques stockés hachés en base
+//   (meilleure pratique : ne jamais stocker les tokens opaques en clair)
+
+// Crée un JWT pour l'accès (inclut un `jti` pour traçabilité).
 function signAccessToken(id: string, email: string) {
   const secret = Env.ACCESS_TOKEN_SECRET as Secret;
   const options: SignOptions = {
     expiresIn: Env.ACCESS_TOKEN_EXPIRES as unknown as SignOptions['expiresIn'],
   };
 
-  // Add unique elements to ensure token uniqueness
   const payload = {
     id,
     email,
-    jti: crypto.randomUUID(), // Unique token ID
-    iat: Math.floor(Date.now() / 1000), // Explicit issued-at timestamp
+    jti: crypto.randomUUID(),
+    iat: Math.floor(Date.now() / 1000),
   };
 
   return jwt.sign(payload, secret, options);
 }
 
+// Génère un token opaque aléatoire utilisé comme refresh token.
 function generateOpaqueRefreshToken(): string {
   return crypto.randomBytes(64).toString('hex');
 }
 
+// Hache le token opaque avant stockage en base (SHA-256).
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -53,6 +60,7 @@ export const AuthService = {
     const tokenHash = hashToken(opaque);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await RefreshTokenRepository.create({ userId: id, tokenHash, expiresAt });
+    // Retourne l'access token (JWT) et le refresh token opaque (pour cookie)
     return { accessToken, refreshToken: opaque };
   },
 
@@ -70,9 +78,9 @@ export const AuthService = {
     const tokenHash = hashToken(opaque);
     const record = await RefreshTokenRepository.findByHash(tokenHash);
     if (!record || record.revokedAt || record.expiresAt < new Date()) {
+      // Token non trouvé, expiré ou déjà révoqué -> refus
       throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
     }
-    // rotate: revoke current and issue new
     await RefreshTokenRepository.revokeById(record.id);
     const user = await UserService.getById(record.userId);
     const { accessToken, refreshToken: newOpaque } = await AuthService.issueTokens(
