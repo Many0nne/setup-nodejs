@@ -29,5 +29,5 @@ USER node
 
 EXPOSE 3000
 
-# Apply migrations then start
-CMD sh -lc "npx prisma migrate deploy --config ./prisma.config.ts && node dist/server.js"
+# Start the application (migrations should be run separately via job or CI)
+CMD ["node", "dist/server.js"]
