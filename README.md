@@ -69,105 +69,143 @@ Après une création de conteneur « from scratch », les tables (dont `User`) s
 
 ## Endpoints principaux
 
-- `GET /health` — liveness/readiness (rapide, sans dépendance DB)
-- `POST /api/auth/register` — body `{ email, password }` ; renvoie `{ user, token }`
-- `POST /api/auth/login` — body `{ email, password }` ; renvoie `{ user, token }`
-- `GET /api/users/me` — protégé (header `Authorization: Bearer <token>`)
+# NodeJS-setup-back
 
-Exemples PowerShell:
+Ce dépôt contient le service backend du projet : une API Express en TypeScript avec authentification JWT, PostgreSQL via Prisma, et des outils pour le développement et le déploiement (Docker, logs, validation, documentation API).
 
-```powershell
-# Register
-$body = @{ email="user@example.com"; password="password123" } | ConvertTo-Json
-Invoke-RestMethod -Uri "http://localhost:3000/api/auth/register" -Method Post -ContentType "application/json" -Body $body
-# Login
-$body = @{ email="user@example.com"; password="password123" } | ConvertTo-Json
-$login = Invoke-RestMethod -Uri "http://localhost:3000/api/auth/login" -Method Post -ContentType "application/json" -Body $body
-$token = $login.token
+## Présentation
 
-# Me
-Invoke-RestMethod -Uri "http://localhost:3000/api/users/me" -Headers @{ Authorization = "Bearer $token" }
+- **Framework** : Express avec TypeScript
+- **ORM** : Prisma (v7) configuré via `prisma.config.ts`
+- **Authentification** : JWT (tokens d'accès), hachage des mots de passe avec `bcryptjs`
+- **Validation** : `zod` pour la validation des requêtes
+- **Sécurité** : Helmet, CORS, HPP, limitation de débit sur les routes d'authentification
+- **Journalisation** : `pino`
+- **Docs API** : OpenAPI/Swagger servi sur `/docs`
+
+## Fonctionnalités
+
+- Enregistrement et connexion des utilisateurs avec tokens JWT
+- Support des refresh tokens (voir `src/repositories/refresh-token.repository.ts`)
+- Routes protégées (ex. : `GET /api/users/me`)
+- Migrations et seed de la base via Prisma
+- Endpoint de vérification d'état à `/health`
+
+## Démarrage (local)
+
+1. Copier les variables d'environnement :
+
+```
+copy .env.example .env
 ```
 
-## Documentation API (Swagger)
+2. Installer les dépendances :
 
-Swagger UI est servi à `http://localhost:3000/docs`.
-Le schéma OpenAPI minimal est dans `src/docs/openapi.ts`.
-
-## Prisma (v7)
-
-- Fichier de config: `prisma.config.ts` (URL de datasource chargée depuis l’environnement)
-- Schéma: `prisma/schema.prisma`
-- Migrations: `prisma/migrations/*`
-
-Commandes utiles:
-
-```powershell
-# Validation et génération du client
-npx prisma validate --config ./prisma.config.ts
-npx prisma generate --config ./prisma.config.ts
-
-# Créer/appliquer une migration (dev local)
-npx prisma migrate dev --name init --config ./prisma.config.ts
-
-# Appliquer en déploiement (utilisé dans le conteneur server)
-npx prisma migrate deploy --config ./prisma.config.ts
-
-# Seed (optionnel)
-npx prisma db seed --config ./prisma.config.ts
 ```
-
-## Scripts NPM
-
-- `dev`: démarrage en développement (watch)
-- `build`: compilation TypeScript
-- `start`: exécute le serveur compilé
-- `test`: tests Jest + Supertest
-- `migrate`: migrations Prisma (dev)
-- `generate`: régénère le client Prisma
-- `seed`: lance le script de seed
-
-## Notes (Windows / bonnes pratiques)
-
-- Sur Windows, privilégiez les volumes nommés Docker pour Postgres (meilleures perfs que les bind mounts NTFS).
-- `bcryptjs` évite les soucis de build natif; vous pouvez passer à `bcrypt` si nécessaire.
-- En prod, fournissez un `JWT_SECRET` long et stocké de manière sécurisée.
-- Le endpoint `/health` est utile pour les probes Docker/Kubernetes et les checks d’uptime.
-
-# Node.js REST API Template (Express + TypeScript + Prisma)
-
-Minimal, reusable starter for a RESTful API with JWT auth and PostgreSQL via Prisma.
-
-## Quick Start
-
-1. Copy `.env.example` to `.env` and adjust values.
-2. Install deps:
-
-```powershell
-Push-Location "c:\Users\baril\Documents\DEV\projets\NodeJS-setup-back"
 npm install
-Pop-Location
 ```
 
-3. Start dev server:
+3. Lancer le serveur en développement (rechargement à chaud) :
 
-```powershell
+```
 npm run dev
 ```
 
-4. Health check: GET `http://localhost:3000/health`.
+4. Vérifier que le service répond :
 
-## Scripts
+```
+GET http://localhost:3000/health
+```
 
-- `dev`: start with hot reload
-- `build`: compile TypeScript
-- `start`: run compiled server
-- `test`: run Jest tests
-- `migrate`: run Prisma migrations
-- `generate`: regenerate Prisma client
-- `seed`: run seed script
+## Exécution avec Docker (recommandé pour un environnement reproductible)
 
-## Notes
+Le projet inclut `compose.yaml` pour une pile multi-conteneurs (Postgres, Adminer, serveur API).
 
-- DB Docker Compose can be added later (`postgres` + named volume). For Windows, prefer named volumes over bind mounts.
-- Uses `bcryptjs` to avoid native build issues on Windows; swap to `bcrypt` if you prefer.
+Pour construire et démarrer les services :
+
+```
+docker compose up -d --build
+```
+
+Pour arrêter et supprimer les conteneurs (et les volumes si souhaité) :
+
+```
+docker compose down -v
+```
+
+Adminer (interface web pour la DB) est accessible sur `http://localhost:8080` avec la configuration de compose fournie.
+
+Valeurs par défaut injectées par `compose` (si non modifiées) :
+
+- Hôte : `postgres`
+- Utilisateur : `postgres`
+- Mot de passe : `postgres`
+- Base : `appdb`
+
+## Variables d'environnement importantes
+
+- `NODE_ENV` (par défaut : `development`)
+- `PORT` (par défaut : `3000`)
+- `DATABASE_URL` (chaîne de connexion Prisma)
+- `JWT_SECRET` (secret pour signer les tokens)
+- `BCRYPT_SALT_ROUNDS` (par défaut : `10`)
+
+Ne stockez pas les secrets de production dans le dépôt. Utilisez un gestionnaire de secrets ou injectez-les via CI/CD.
+
+## Endpoints principaux
+
+- `GET /health` — vérification d'état
+- `POST /api/auth/register` — enregistrement (body : `{ email, password }`)
+- `POST /api/auth/login` — authentification (body : `{ email, password }`)
+- `GET /api/users/me` — route protégée retournant l'utilisateur courant (header `Authorization: Bearer <token>`)
+
+Consultez `src/routes` et `src/controllers` pour les implémentations et les formats attendus.
+
+## Prisma
+
+- Schéma : `prisma/schema.prisma`
+- Configuration : `prisma.config.ts`
+- Migrations : `prisma/migrations/`
+
+Commandes utiles :
+
+```
+npx prisma validate --config ./prisma.config.ts
+npx prisma generate --config ./prisma.config.ts
+npx prisma migrate dev --name <name> --config ./prisma.config.ts
+npx prisma migrate deploy --config ./prisma.config.ts
+npx prisma db seed --config ./prisma.config.ts
+```
+
+## Tests
+
+- Les tests unitaires et d'intégration utilisent Jest. Lancer :
+
+```
+npm test
+```
+
+Les tests d'intégration peuvent nécessiter une base de test ; consultez `jest.config.cjs` pour les détails.
+
+## Notes pour le développement
+
+- Sur Windows, `bcryptjs` évite les problèmes de compilation native ; passez à `bcrypt` si vous souhaitez les performances natives et gérer la compilation dans CI.
+- Assurez-vous que `JWT_SECRET` est suffisamment fort en production et prévoyez une stratégie de rotation.
+- La route `/docs` expose l'UI OpenAPI ; mettez à jour `src/docs/openapi.ts` lorsque vous ajoutez des endpoints.
+
+## Contribuer
+
+- Créez des branches de fonctionnalité depuis `main`.
+- Ajoutez ou modifiez les migrations Prisma dans `prisma/migrations`.
+- Ajoutez des tests pour les nouveaux comportements et assurez-vous que `npm test` passe.
+
+## Où regarder dans le code
+
+- Démarrage du serveur : `src/server.ts`
+- Configuration de l'application : `src/app.ts` et `src/config`
+- Logique d'auth : `src/controllers/auth.controller.ts` et `src/services/auth.service.ts`
+- Répertoire/service utilisateur : `src/repositories/user.repository.ts` et `src/services/user.service.ts`
+
+---
+
+Ce backend est conçu pour être utilisé avec un client frontend séparé (voir `React-setup-front` dans l'espace de travail). Il propose une API axée sur l'authentification, adaptée aux démonstrations et comme point de départ pour des projets de production.
